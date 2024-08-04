@@ -10,8 +10,10 @@ import datetime
 from tqdm import trange
 
 import wandb
+import datetime
+import uuid
 
-from my_utils import get_run_id, TransformerModel, TransformerModelLooped, Curriculum
+from my_utils import TransformerModel, TransformerModelLooped, Curriculum
 from my_tasks import get_task_sampler
 
 
@@ -21,24 +23,21 @@ class TrainConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     
     # Outputs and Wandb logging
-    timestamp: str = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    run_id: str = get_run_id(args)
-    out_dir: Path = Path(args.out_dir) / run_id
-    
-    seed = 42
-    debug_mode: bool = args.debug_mode
-    
-    # Wandb
-    
     project = args.wandb.project
     notes = args.wandb.notes
     name = args.wandb.name
     
+    timestamp: str = datetime.datetime.now().strftime('%m%d%H%M%S')
+    run_id: str = f"{timestamp}-{name}-{str(uuid.uuid4())[:4]}"
     
+    out_dir: Path = Path("outputs") / run_id
     
-    model_family: str = "gpt2_loop"
+    seed = 42
+    # debug_mode: bool = args.debug_mode
     
     # Net
+    model_family: str = "gpt2_loop"
+    device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
     n_dims = conf.n_dims
     n_positions = conf.n_positions
@@ -51,11 +50,12 @@ class TrainConfig(BaseModel):
     
     # Training: optimizers and scalers
     
-    learning_rate = args.training.learning_rate
-    weight_decay = args.training.weight_decay
+    learning_rate: float = args.training.learning_rate
+    weight_decay: float = args.training.weight_decay
     
     
     epochs = args.training.train_steps # 500 000
+    
     
     
     
@@ -88,7 +88,6 @@ class TrainConfig(BaseModel):
     
     model_dir: str = "/workspaces/classifier/output/january_filtered_set"
     weights_name: str = "model_refset_january"
-    device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def setup_seed(seed=42):
@@ -150,19 +149,8 @@ def create_model(config: TrainConfig):
     model.to(config.device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
-    
-    dtype = 'float16'  # 'bfloat16', 'float32'
-    # ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
-    # if args.training.use_ctx:
-    #     ctx = torch.amp.autocast(device_type='cuda', dtype=ptdtype, cache_enabled=False)
-    # else:
-    #     ctx = None
-    scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
-    
-    # loss_func = losses.TripletMarginLoss(margin=0.2, distance=distance, reducer=reducer)
-    # return loss_func
-    
-    return model, optimizer, scaler
+        
+    return model, optimizer
 
 
 def train_batch(
@@ -338,7 +326,6 @@ def train(
 
 
 if __name__ == "__main__":
-
     config = TrainConfig()
     
     config.out_dir.mkdir(parents=True, exist_ok=True)
@@ -355,26 +342,18 @@ if __name__ == "__main__":
     
     setup_seed(config.seed)
     
+    
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     
-
-    # train_loader, val_loader, _ = create_dataloaders(config)
-
-    model, optimizer, scaler = create_model(config)
+    
+    model, optimizer = create_model(config)
     
     curriculum = Curriculum(args.training.curriculum)
     
-    # accuracy_calculator = AccuracyCalculator(include=config.metrics, k=config.k_neighbors)
-    
     train(
         model,
-        # loss_func,
         optimizer,
-        scaler,
-        # train_loader,
-        # val_loader,
-        # accuracy_calculator,
         curriculum,
         config,
     )

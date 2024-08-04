@@ -1,15 +1,9 @@
-import datetime
-import uuid
 import torch
 
 from scripts.nano_gpt import GPT2Model, GPT2Config, LayerNorm
 
 MAX_NUM_CLASS = 2  # for openML classification task
 
-def get_run_id(args):
-    now = datetime.datetime.now().strftime('%m%d%H%M%S')
-    run_id = f"{now}-{args.wandb.name}-{str(uuid.uuid4())[:4]}"
-    return run_id
 
 
 class TransformerModel(torch.nn.Module):
