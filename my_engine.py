@@ -1,27 +1,21 @@
+import datetime
 import os
 import random
+import uuid
+from pathlib import Path
 
 import numpy as np
 import torch
-
+import wandb
 from pydantic import BaseModel, ConfigDict
-
-# torch.backends.cudnn.benchmark = True
-import datetime
 from tqdm import trange
 
-import wandb
-import datetime
-import uuid
-
 from my_tasks import get_task_sampler
+from nano_gpt import GPT2Config, GPT2Model
 
-from nano_gpt import GPT2Model, GPT2Config
+# torch.backends.cudnn.benchmark = True
 
-from pathlib import Path
-
-
-class GenericSchedule(BaseModel):
+class GenericCurriculumSchedule(BaseModel):
     start: int
     end: int
     inc: int
@@ -29,13 +23,11 @@ class GenericSchedule(BaseModel):
 
 
 class CurriculumConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    dims: GenericCurriculumSchedule = GenericCurriculumSchedule(start=5, end=20, inc=1, interval=5000)
 
-    dims: GenericSchedule = GenericSchedule(start=5, end=20, inc=1, interval=5000)
+    points: GenericCurriculumSchedule = GenericCurriculumSchedule(start=11, end=41, inc=2, interval=5000)
 
-    points: GenericSchedule = GenericSchedule(start=11, end=41, inc=2, interval=5000)
-
-    loops: GenericSchedule = GenericSchedule(start=15, end=30, inc=2, interval=500)
+    loops: GenericCurriculumSchedule = GenericCurriculumSchedule(start=15, end=30, inc=2, interval=500)
 
 
 class ExperimentConfig(BaseModel):
@@ -87,18 +79,19 @@ class ExperimentConfig(BaseModel):
 
 
 class Curriculum:
-    def __init__(self, args):
+    def __init__(self, config: CurriculumConfig):
         # args.dims and args.points each contain start, end, inc, interval attributes
         # inc denotes the change in n_dims,
         # this change is done every interval,
         # and start/end are the limits of the parameter
-        self.n_dims_truncated = args.dims.start
-        self.n_points = args.points.start
-        self.n_loops = args.loops.start
 
-        self.n_dims_schedule = args.dims
-        self.n_points_schedule = args.points
-        self.n_loops_schedule = args.loops
+        self.n_dims_truncated = config.dims.start
+        self.n_points = config.points.start
+        self.n_loops = config.loops.start
+
+        self.n_dims_schedule = config.dims
+        self.n_points_schedule = config.points
+        self.n_loops_schedule = config.loops
         self.step_count = 0
 
     def update(self):
