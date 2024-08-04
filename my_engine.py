@@ -248,27 +248,27 @@ def create_model(config: ExperimentConfig):
 
 
 def train_batch(
-    X: torch.Tensor,
-    y: torch.Tensor,
+    xs: torch.Tensor,
+    ys: torch.Tensor,
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
-    curriculum,
+    curriculum: Curriculum,
     config: ExperimentConfig,
 ):
-    X, y = X.to(config.device), y.to(config.device)
+    xs, ys = xs.to(config.device), ys.to(config.device)
 
     if config.family == "gpt2":
-        y_pred = model(X, y, add_inputs_embeds=False)  # [B, n]
+        y_pred = model(xs, ys, add_inputs_embeds=False)  # [B, n]
         # list of [B, n], length K + 1, get rid of the 0-th one
-        loss = (y - y_pred).square().mean()  # auto on both K and n (number of in context samples)
+        loss = (ys - y_pred).square().mean()  # auto on both K and n (number of in context samples)
     elif config.family == "gpt2_loop":
         n_loops = curriculum.n_loops  # K
 
         horizon_start = max(0, n_loops - config.n_loop_window)
-        y_pred_list = model(X, y, horizon_start, n_loops)
+        y_pred_list = model(xs, ys, horizon_start, n_loops)
         # list of [B, n], length K
         y_pred_arr = torch.cat(y_pred_list, dim=0)  # [B * K, n]
-        y_star_arr = torch.cat([y] * len(y_pred_list), dim=0)  # [B * K, n]
+        y_star_arr = torch.cat([ys] * len(y_pred_list), dim=0)  # [B * K, n]
         loss = (y_star_arr - y_pred_arr).square().mean()  # auto on both K and n (number of in context samples)
         y_pred = y_pred_list[-1]  # [B, n]
 
@@ -283,7 +283,7 @@ def train_batch(
 def train(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
-    curriculum,
+    curriculum: Curriculum,
     config: ExperimentConfig,
 ):
     # wandb.watch(model, loss_func, log="all", log_freq=100)
@@ -361,9 +361,9 @@ if __name__ == "__main__":
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
 
-    model, optimizer = create_model(config)
-
     curriculum = Curriculum(config.curriculum)
+
+    model, optimizer = create_model(config)
 
     train(model, optimizer, curriculum, config)
 
