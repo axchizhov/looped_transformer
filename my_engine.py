@@ -14,7 +14,7 @@ import wandb
 import datetime
 import uuid
 
-from my_utils import TransformerModel, TransformerModelLooped, Curriculum
+from my_utils import TransformerModel, TransformerModelLooped
 from my_tasks import get_task_sampler
 
 
@@ -84,6 +84,34 @@ class ExperimentConfig(BaseModel):
     task_name: str = "linear_regression"  # training.task_name
 
     curriculum: CurriculumConfig = CurriculumConfig()
+
+
+class Curriculum:
+    def __init__(self, args):
+        # args.dims and args.points each contain start, end, inc, interval attributes
+        # inc denotes the change in n_dims,
+        # this change is done every interval,
+        # and start/end are the limits of the parameter
+        self.n_dims_truncated = args.dims.start
+        self.n_points = args.points.start
+        self.n_loops = args.loops.start
+
+        self.n_dims_schedule = args.dims
+        self.n_points_schedule = args.points
+        self.n_loops_schedule = args.loops
+        self.step_count = 0
+
+    def update(self):
+        self.step_count += 1
+        self.n_dims_truncated = self.update_var(self.n_dims_truncated, self.n_dims_schedule)
+        self.n_points = self.update_var(self.n_points, self.n_points_schedule)
+        self.n_loops = self.update_var(self.n_loops, self.n_loops_schedule)
+
+    def update_var(self, var, schedule):
+        if self.step_count % schedule.interval == 0:
+            var += schedule.inc
+
+        return min(var, schedule.end)
 
 
 def setup_seed(seed=42):
