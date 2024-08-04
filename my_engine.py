@@ -35,7 +35,7 @@ class CurriculumConfig(BaseModel):
 
     points: GenericSchedule = GenericSchedule(start=11, end=41, inc=2, interval=5000)
 
-    loops: GenericSchedule = GenericSchedule(start=20, end=350, inc=2, interval=500)
+    loops: GenericSchedule = GenericSchedule(start=15, end=30, inc=2, interval=500)
 
 
 class ExperimentConfig(BaseModel):
@@ -58,6 +58,7 @@ class ExperimentConfig(BaseModel):
 
     # Net
     family: str = "gpt2_loop"
+    # family: str = "gpt2"
 
     n_embd: int = 256
     n_layer: int = 1
@@ -216,11 +217,6 @@ if __name__ == "__main__":
 
     curriculum = Curriculum(config.curriculum)
 
-    train(
-        model,
-        optimizer,
-        curriculum,
-        config,
-    )
+    train(model, optimizer, curriculum, config)
 
     wandb.finish()

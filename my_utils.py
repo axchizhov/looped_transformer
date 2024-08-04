@@ -5,11 +5,18 @@ from scripts.nano_gpt import GPT2Model, GPT2Config, LayerNorm
 MAX_NUM_CLASS = 2  # for openML classification task
 
 
-
 class TransformerModel(torch.nn.Module):
-    def __init__(self, n_dims, n_positions, n_embd=128, n_layer=12, n_head=4, pred_type='regression', **kwargs):
-
-        super(TransformerModel, self).__init__()
+    def __init__(
+        self,
+        n_dims,
+        n_positions,
+        n_embd,
+        n_layer,
+        n_head,
+        pred_type,
+        **kwargs,
+    ):
+        super().__init__()
         self.freq = 2
         self.ind = 0
         configuration = GPT2Config()
@@ -19,7 +26,7 @@ class TransformerModel(torch.nn.Module):
         configuration.n_embd = n_embd
         configuration.dropout = 0.0
         configuration.bias = True
-        configuration.dropout = 0.
+        configuration.dropout = 0.0
         self.configuration = configuration
 
         self.n_positions = n_positions  # n = points in this setting
@@ -30,9 +37,9 @@ class TransformerModel(torch.nn.Module):
 
         self._read_in = torch.nn.Linear(n_dims, n_embd)
         self._backbone = GPT2Model(self.configuration)
-        if self._pred_type == 'regression':
+        if self._pred_type == "regression":
             self._read_out = torch.nn.Linear(n_embd, 1)
-        elif self._pred_type == 'classification':
+        elif self._pred_type == "classification":
             self._read_out = torch.nn.Linear(n_embd, MAX_NUM_CLASS)  # NOTE: hard-code
 
         self.print_flag = False
@@ -49,7 +56,7 @@ class TransformerModel(torch.nn.Module):
         ys_b_wide = torch.cat(
             (
                 ys_b.view(B, n, 1),
-                torch.zeros(B, n, d-1, device=device),
+                torch.zeros(B, n, d - 1, device=device),
             ),
             axis=2,
         )
@@ -71,29 +78,38 @@ class TransformerModel(torch.nn.Module):
         embeds = self._read_in(zs)  # [B, 2n, d_in + 1] -> [B, 2n, d]
 
         f_output = self._backbone(
-            inputs_embeds=embeds, position_ids=None, rm_pos_embd=False, add_inputs_embeds=add_inputs_embeds)  # [B, 2n, d]
+            inputs_embeds=embeds, position_ids=None, rm_pos_embd=False, add_inputs_embeds=add_inputs_embeds
+        )  # [B, 2n, d]
         prediction = self._read_out(f_output)  # [B, 2n, d] -> [B, 2n, 1]
-        if self._pred_type == 'regression':
-            y = prediction[:, self.ind::self.freq, 0]
-        elif self._pred_type == 'classification':
-            y = prediction[:, self.ind::self.freq]
+        if self._pred_type == "regression":
+            y = prediction[:, self.ind :: self.freq, 0]
+        elif self._pred_type == "classification":
+            y = prediction[:, self.ind :: self.freq]
         else:
             raise NotImplementedError
 
         return y
 
+
 class TransformerModelLooped(TransformerModel):
     def __init__(
-            self, n_dims, n_positions, n_embd=128, n_layer=12, n_head=4, loop_func='z=f(x+z)', pred_type='regression', **kwargs):
-
-        super(TransformerModelLooped, self).__init__(
-            n_dims, n_positions, n_embd, n_layer, n_head, pred_type)
+        self,
+        n_dims,
+        n_positions,
+        n_embd,
+        n_layer,
+        n_head,
+        loop_func,
+        pred_type,
+        **kwargs,
+    ):
+        super().__init__(n_dims, n_positions, n_embd, n_layer, n_head, pred_type)
         self.loop_func = loop_func
 
     def f(self, output, embeds):
-        if self.loop_func == 'z=f(x+z)':
+        if self.loop_func == "z=f(x+z)":
             f_output = self._backbone(inputs_embeds=output + embeds)  # [B, 2n + 1, d]
-        elif self.loop_func == 'z=f(x*z)':
+        elif self.loop_func == "z=f(x*z)":
             f_output = self._backbone(inputs_embeds=output * embeds)  # [B, 2n + 1, d]
         else:
             raise NotImplementedError
@@ -110,9 +126,9 @@ class TransformerModelLooped(TransformerModel):
         B, n, d_in = xs.shape
         zs = self._combine(xs, ys)  # [B, n, d_in], [B, n], [B, n] -> [B, 2n, d_in + 1]
         embeds = self._read_in(zs)  # [B, 2n, d_in + 1] -> [B, 2n, d]
-        if self.loop_func in ['z=f(x+z)']:
+        if self.loop_func in ["z=f(x+z)"]:
             output = torch.zeros_like(embeds)  # also of shape [B, 2n, d]
-        elif self.loop_func in ['z=f(x*z)']:
+        elif self.loop_func in ["z=f(x*z)"]:
             output = torch.ones_like(embeds)  # also of shape [B, 2n, d]
         else:
             raise NotImplementedError("Currently we only support loop function z=f(x+z) or z=f(x*z).")
@@ -125,10 +141,10 @@ class TransformerModelLooped(TransformerModel):
             else:
                 output = self.f(output, embeds)
                 prediction = self._read_out(output)  # [B, 2n, d] -> [B, 2n, 1]
-                if self._pred_type == 'regression':
-                    y = prediction[:, self.ind::self.freq, 0]
-                elif self._pred_type == 'classification':
-                    y = prediction[:, self.ind::self.freq]
+                if self._pred_type == "regression":
+                    y = prediction[:, self.ind :: self.freq, 0]
+                elif self._pred_type == "classification":
+                    y = prediction[:, self.ind :: self.freq]
                 else:
                     raise NotImplementedError
                 pred_list.append(y)
@@ -137,6 +153,7 @@ class TransformerModelLooped(TransformerModel):
                 self.print_flag = True
 
         return pred_list
+
 
 import math
 
@@ -158,12 +175,9 @@ class Curriculum:
 
     def update(self):
         self.step_count += 1
-        self.n_dims_truncated = self.update_var(
-            self.n_dims_truncated, self.n_dims_schedule)
-        self.n_points = self.update_var(
-            self.n_points, self.n_points_schedule)
-        self.n_loops = self.update_var(
-            self.n_loops, self.n_loops_schedule)
+        self.n_dims_truncated = self.update_var(self.n_dims_truncated, self.n_dims_schedule)
+        self.n_points = self.update_var(self.n_points, self.n_points_schedule)
+        self.n_loops = self.update_var(self.n_loops, self.n_loops_schedule)
 
     def update_var(self, var, schedule):
         if self.step_count % schedule.interval == 0:
