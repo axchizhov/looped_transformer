@@ -13,9 +13,8 @@ from tqdm import trange
 from my_tasks import get_task_sampler
 from nano_gpt import GPT2Config, GPT2Model
 
-# torch.backends.cudnn.benchmark = True
 
-class GenericCurriculumSchedule(BaseModel):
+class CurriculumSchedule(BaseModel):
     start: int
     end: int
     inc: int
@@ -23,11 +22,11 @@ class GenericCurriculumSchedule(BaseModel):
 
 
 class CurriculumConfig(BaseModel):
-    dims: GenericCurriculumSchedule = GenericCurriculumSchedule(start=5, end=20, inc=1, interval=5000)
+    dims: CurriculumSchedule = CurriculumSchedule(start=5, end=20, inc=1, interval=5000)
 
-    points: GenericCurriculumSchedule = GenericCurriculumSchedule(start=11, end=41, inc=2, interval=5000)
+    points: CurriculumSchedule = CurriculumSchedule(start=11, end=41, inc=2, interval=5000)
 
-    loops: GenericCurriculumSchedule = GenericCurriculumSchedule(start=15, end=30, inc=2, interval=500)
+    loops: CurriculumSchedule = CurriculumSchedule(start=15, end=30, inc=2, interval=500)
 
 
 class ExperimentConfig(BaseModel):
@@ -356,6 +355,8 @@ if __name__ == "__main__":
     )
 
     setup_seed(config.seed)
+    
+    # torch.backends.cudnn.benchmark = True
 
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
