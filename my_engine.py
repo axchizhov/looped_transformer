@@ -21,7 +21,7 @@ from my_tasks import get_task_sampler
 from pathlib import Path
 
 
-class TrainConfig(BaseModel):
+class ExperimentConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     debug_mode = True
@@ -41,14 +41,14 @@ class TrainConfig(BaseModel):
     # Net
     family: str = "gpt2_loop"
 
-    n_embd = 256
-    n_layer = 1
-    n_head = 8
-    n_positions = 101
-    n_dims = 20
+    n_embd: int = 256
+    n_layer: int = 1
+    n_head: int = 8
+    n_positions: int = 101
+    n_dims: int = 20
     
-    pred_type = ... # conf.pred_type
-    loop_func = ... # conf.loop_func
+    pred_type: str = ... # conf.pred_type
+    loop_func: str = ... # conf.loop_func
 
     # Training: optimizers and scalers
     device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -57,6 +57,12 @@ class TrainConfig(BaseModel):
     weight_decay: float = 0.0 # args.training.weight_decay
 
     epochs = 500000 # args.training.train_steps
+    batch_size = 64 # training.batch_size
+    sparsity = 100 # training.sparsity
+    
+    n_loop_window = 15
+    
+    task_name: str = ... # training.task_name
 
 
 def setup_seed(seed=42):
@@ -68,7 +74,7 @@ def setup_seed(seed=42):
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
-def create_model(config: TrainConfig):
+def create_model(config: ExperimentConfig):
     if config.family == "gpt2":
         model = TransformerModel(**dict(config))
     elif config.family == "gpt2_loop":
@@ -87,29 +93,26 @@ def train_batch(
     X: torch.Tensor,
     y: torch.Tensor,
     model: torch.nn.Module,
-    # loss_func: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     curriculum,
-    config: TrainConfig,
+    config: ExperimentConfig,
 ):
     X, y = X.to(config.device), y.to(config.device)
 
     if config.family == "gpt2":
-        y_pred = model(X, y, add_inputs_embeds=args.training.add_inputs_embeds)  # [B, n]
+        y_pred = model(X, y, add_inputs_embeds=False)  # [B, n]
         # list of [B, n], length K + 1, get rid of the 0-th one
         loss = (y - y_pred).square().mean()  # auto on both K and n (number of in context samples)
     elif config.family == "gpt2_loop":
         n_loops = curriculum.n_loops  # K
 
-        horizon_start = max(0, n_loops - args.training.n_loop_window)
+        horizon_start = max(0, n_loops - config.n_loop_window)
         y_pred_list = model(X, y, horizon_start, n_loops)
         # list of [B, n], length K
         y_pred_arr = torch.cat(y_pred_list, dim=0)  # [B * K, n]
         y_star_arr = torch.cat([y] * len(y_pred_list), dim=0)  # [B * K, n]
         loss = (y_star_arr - y_pred_arr).square().mean()  # auto on both K and n (number of in context samples)
         y_pred = y_pred_list[-1]  # [B, n]
-
-    # loss = loss_func(embeddings, y, hard_pairs)
 
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
@@ -172,7 +175,7 @@ def train(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     curriculum,
-    config: TrainConfig,
+    config: ExperimentConfig,
 ):
     # wandb.watch(model, loss_func, log="all", log_freq=100)
 
@@ -182,13 +185,13 @@ def train(
         model.train()
 
         task_sampler = get_task_sampler(
-            task_name=args.training.task_name,
-            batch_size=args.training.batch_size,
+            task_name=config.task_name,
+            batch_size=config.batch_size,
             n_points=curriculum.n_points,
-            n_dims=args.model.n_dims,
+            n_dims=config.n_dims,
             n_dims_truncated=curriculum.n_dims_truncated,
             device=config.device,
-            sparsity=args.training.sparsity,
+            sparsity=config.sparsity,
         )
 
         real_task = task_sampler()
@@ -243,7 +246,7 @@ def train(
 
 
 if __name__ == "__main__":
-    config = TrainConfig()
+    config = ExperimentConfig()
 
     config.out_dir.mkdir(parents=True, exist_ok=True)
 
