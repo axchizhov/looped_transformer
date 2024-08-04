@@ -30,6 +30,7 @@ class ExperimentConfig(BaseModel):
     project = "alex_loop"
     notes = ""
     name = "noname_run"
+    log_every_steps = 100
 
     timestamp: str = datetime.datetime.now().strftime("%m%d%H%M%S")
     run_id: str = f"{timestamp}-{name}-{str(uuid.uuid4())[:4]}"
@@ -122,19 +123,6 @@ def train_batch(
     return loss.detach(), y_pred.detach()
 
 
-def log_training(loss: torch.Tensor, num_triplets, example_count, epoch):
-    loss = float(loss)
-
-    wandb.log({"epoch": epoch, "loss": loss}, step=example_count)
-    # print(f"Loss after {str(example_count).zfill(5)} examples: {loss:.3f}")
-    # print(f"Number of mined triplets = {num_triplets}")
-
-
-def get_all_embeddings(dataset, model):
-    tester = testers.BaseTester()
-    return tester.get_all_embeddings(dataset, model)
-
-
 # def test(
 #     curriculum,
 #     epoch,
@@ -179,8 +167,6 @@ def train(
 ):
     # wandb.watch(model, loss_func, log="all", log_freq=100)
 
-    example_count = 0
-    batch_count = 0
     for epoch in trange(config.epochs):
         model.train()
 
@@ -198,14 +184,11 @@ def train(
         xs, ys = real_task.xs.float(), real_task.ys.float()
 
         loss, output = train_batch(xs, ys, model, optimizer, curriculum, config)
-        # example_count += len(X)
-        # batch_count += 1
-        # if batch_count % 100 == 0:
-        #     log_training(loss, miner.num_triplets, example_count, epoch)
 
         # test(train_loader, val_loader, model, accuracy_calculator, epoch, config)
+        
         point_wise_tags = list(range(curriculum.n_points))  # [0, 1, 2, ..., n-1]
-        if epoch % args.wandb.log_every_steps == 0:
+        if epoch % config.log_every_steps == 0:
             point_wise_loss = (output - ys).square().mean(dim=0)  # [n,]
 
             wandb.log(
@@ -221,25 +204,6 @@ def train(
             )
 
         curriculum.update()
-
-        # if epoch % 4 == 0:
-        #     model_path = Path(config.model_dir) / f"{config.weights_name}_e{epoch}.pth"
-        #     torch.save(model.state_dict(), model_path)
-
-        # if i % args.training.save_every_steps == 0:
-        #     training_state = {
-        #         "model_state_dict": model.state_dict(),
-        #         "optimizer_state_dict": optimizer.state_dict(),
-        #         "train_step": i,
-        #     }
-        #     torch.save(training_state, state_path)
-        # if (
-        #         args.training.keep_every_steps > 0
-        #         and i % args.training.keep_every_steps == 0
-        #         and i > 0
-        # ) or (i == args.training.train_steps - 1):
-        #     torch.save({'model': model.state_dict()},
-        #                os.path.join(args.out_dir, f"model_{i}.pt"))
 
     model_path = config.out_dir / f"model_epoch_{epoch}.pth"
     torch.save(model.state_dict(), model_path)
