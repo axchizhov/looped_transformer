@@ -123,42 +123,6 @@ def train_batch(
     return loss.detach(), y_pred.detach()
 
 
-# def test(
-#     curriculum,
-#     epoch,
-
-
-#     train_loader: DataLoader,
-#     test_loader: DataLoader,
-#     model: nn.Module,
-#     accuracy_calculator,
-#     epoch: int,
-#     config: TrainConfig,
-# ):
-
-
-#     train_set = train_loader.dataset
-#     test_set = test_loader.dataset
-
-#     tester = testers.GlobalEmbeddingSpaceTester(
-#         dataloader_num_workers=config.num_workers,
-#         accuracy_calculator=accuracy_calculator,
-#     )
-
-#     dataset_dict = {"validation_set": test_set, "train_set": train_set}
-#     accuracies = tester.test(dataset_dict, epoch, model)
-#     print(accuracies)
-
-#     # train_embeddings, train_labels = get_all_embeddings(train_set, model)
-#     # test_embeddings, test_labels = get_all_embeddings(test_set, model)
-#     # train_labels = train_labels.squeeze(1)
-#     # test_labels = test_labels.squeeze(1)
-
-#     # accuracies = accuracy_calculator.get_accuracy(test_embeddings, test_labels, train_embeddings, train_labels, False)
-
-#     wandb.log(accuracies)
-
-
 def train(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
