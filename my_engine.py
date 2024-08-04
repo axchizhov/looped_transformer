@@ -21,23 +21,40 @@ from my_tasks import get_task_sampler
 from pathlib import Path
 
 
+class GenericSchedule(BaseModel):
+    start: int
+    end: int
+    inc: int
+    interval: int
+
+
+class CurriculumConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    dims: GenericSchedule = GenericSchedule(start=5, end=20, inc=1, interval=5000)
+
+    points: GenericSchedule = GenericSchedule(start=11, end=41, inc=2, interval=5000)
+
+    loops: GenericSchedule = GenericSchedule(start=20, end=350, inc=2, interval=500)
+
+
 class ExperimentConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    debug_mode = True
-    
+    debug_mode: bool = True
+
     # Outputs and Wandb logging
-    project = "alex_loop"
-    notes = ""
-    name = "noname_run"
-    log_every_steps = 100
+    project: str = "alex_loop"
+    notes: str = ""
+    name: str = "noname_run"
+    log_every_steps: int = 100
 
     timestamp: str = datetime.datetime.now().strftime("%m%d%H%M%S")
     run_id: str = f"{timestamp}-{name}-{str(uuid.uuid4())[:4]}"
 
-    out_dir: Path = Path("outputs") / run_id
+    out_dir: Path = Path("./outputs") / run_id
 
-    seed = 42
+    seed: int = 42
 
     # Net
     family: str = "gpt2_loop"
@@ -47,23 +64,25 @@ class ExperimentConfig(BaseModel):
     n_head: int = 8
     n_positions: int = 101
     n_dims: int = 20
-    
-    pred_type: str = ... # conf.pred_type
-    loop_func: str = ... # conf.loop_func
+
+    pred_type: str = "regression"  # conf.pred_type
+    loop_func: str = "z=f(x+z)"  # conf.loop_func
 
     # Training: optimizers and scalers
     device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    learning_rate: float = 0.0001 # args.training.learning_rate
-    weight_decay: float = 0.0 # args.training.weight_decay
+    learning_rate: float = 0.0001  # args.training.learning_rate
+    weight_decay: float = 0.0  # args.training.weight_decay
 
-    epochs = 500000 # args.training.train_steps
-    batch_size = 64 # training.batch_size
-    sparsity = 100 # training.sparsity
-    
-    n_loop_window = 15
-    
-    task_name: str = ... # training.task_name
+    epochs: int = 500000  # args.training.train_steps
+    batch_size: int = 64  # training.batch_size
+    sparsity: int = 100  # training.sparsity
+
+    n_loop_window: int = 15
+
+    task_name: str = "linear_regression"  # training.task_name
+
+    curriculum: CurriculumConfig = CurriculumConfig()
 
 
 def setup_seed(seed=42):
@@ -150,7 +169,7 @@ def train(
         loss, output = train_batch(xs, ys, model, optimizer, curriculum, config)
 
         # test(train_loader, val_loader, model, accuracy_calculator, epoch, config)
-        
+
         point_wise_tags = list(range(curriculum.n_points))  # [0, 1, 2, ..., n-1]
         if epoch % config.log_every_steps == 0:
             point_wise_loss = (output - ys).square().mean(dim=0)  # [n,]
@@ -195,7 +214,7 @@ if __name__ == "__main__":
 
     model, optimizer = create_model(config)
 
-    curriculum = Curriculum(args.training.curriculum)
+    curriculum = Curriculum(config.curriculum)
 
     train(
         model,
