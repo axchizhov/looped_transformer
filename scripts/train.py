@@ -74,7 +74,7 @@ def train_step(args, curriculum, model, xs, ys, optimizer, ctx, scaler):
 
 def main(args, device):
     # TORCH 2.0 ZONE ###############################
-    torch.set_float32_matmul_precision('highest')
+    # torch.set_float32_matmul_precision('highest')
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     dtype = 'float16'  # 'bfloat16', 'float32'
