@@ -304,7 +304,6 @@ def train(
 
         # test(train_loader, val_loader, model, accuracy_calculator, epoch, config)
 
-        point_wise_tags = list(range(curriculum.n_points))  # [0, 1, 2, ..., n-1]
         if epoch % config.log_every_steps == 0:
             point_wise_loss = (output - ys).square().mean(dim=0)  # [n,]
 
@@ -312,7 +311,7 @@ def train(
                 {
                     "overall_loss": loss,
                     "loop_times": curriculum.n_loops,
-                    "pointwise/loss": dict(zip(point_wise_tags, point_wise_loss.detach().cpu().numpy())),
+                    "pointwise/loss": dict(enumerate(point_wise_loss.cpu().numpy())),
                     "n_points": curriculum.n_points,
                     "n_dims": curriculum.n_dims_truncated,
                     "lr": optimizer.param_groups[0]["lr"],
