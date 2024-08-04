@@ -119,7 +119,10 @@ class TransformerModel(torch.nn.Module):
         block_size = self.freq * config.n_positions + 1
 
         self.configuration = GPT2Config(
-            block_size=block_size, n_layer=config.n_layer, n_head=config.n_head, n_embd=config.n_embd
+            block_size=block_size,
+            n_layer=config.n_layer,
+            n_head=config.n_head,
+            n_embd=config.n_embd,
         )
 
         self.n_positions = config.n_positions  # n = points in this setting
@@ -355,7 +358,7 @@ if __name__ == "__main__":
     )
 
     setup_seed(config.seed)
-    
+
     # torch.backends.cudnn.benchmark = True
 
     torch.backends.cuda.matmul.allow_tf32 = True
