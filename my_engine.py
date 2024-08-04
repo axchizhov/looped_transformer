@@ -138,8 +138,6 @@ class TransformerModel(torch.nn.Module):
         elif self._pred_type == "classification":
             self._read_out = torch.nn.Linear(config.n_embd, self.MAX_NUM_CLASS)  # NOTE: hard-code
 
-        self.print_flag = False
-
     def _combine(self, xs_b, ys_b):
         """
         :param xs_b: shape [B, n, d_in]
@@ -226,9 +224,6 @@ class TransformerModelLooped(TransformerModel):
                 else:
                     raise NotImplementedError
                 pred_list.append(y)
-            if not self.print_flag:
-                print(idx)
-                self.print_flag = True
 
         return pred_list
 
