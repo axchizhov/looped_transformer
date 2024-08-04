@@ -156,7 +156,7 @@ class TransformerModel(torch.nn.Module):
 
         return zs
 
-    def forward(self, xs, ys, add_inputs_embeds=False):
+    def forward(self, xs, ys):
         """
         :param xs: [B, n, d]
         :param ys: [B, n]
@@ -167,9 +167,7 @@ class TransformerModel(torch.nn.Module):
         zs = self._combine(xs, ys)  # [B, n, d_in], [B, n], [B, n] -> [B, 2n, d_in + 1]
         embeds = self._read_in(zs)  # [B, 2n, d_in + 1] -> [B, 2n, d]
 
-        f_output = self._backbone(
-            inputs_embeds=embeds, position_ids=None, rm_pos_embd=False, add_inputs_embeds=add_inputs_embeds
-        )  # [B, 2n, d]
+        f_output = self._backbone(inputs_embeds=embeds, position_ids=None, rm_pos_embd=False)  # [B, 2n, d]
         prediction = self._read_out(f_output)  # [B, 2n, d] -> [B, 2n, 1]
         if self._pred_type == "regression":
             y = prediction[:, self.ind :: self.freq, 0]
@@ -261,7 +259,7 @@ def train_batch(
     xs, ys = xs.to(config.device), ys.to(config.device)
 
     if config.family == "gpt2":
-        y_pred = model(xs, ys, add_inputs_embeds=False)  # [B, n]
+        y_pred = model(xs, ys)  # [B, n]
         # list of [B, n], length K + 1, get rid of the 0-th one
         loss = (ys - y_pred).square().mean()  # auto on both K and n (number of in context samples)
     elif config.family == "gpt2_loop":
