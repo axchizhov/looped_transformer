@@ -24,10 +24,12 @@ from pathlib import Path
 class TrainConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    debug_mode = True
+    
     # Outputs and Wandb logging
-    project = args.wandb.project
-    notes = args.wandb.notes
-    name = args.wandb.name
+    project = "alex_loop"
+    notes = ""
+    name = "noname_run"
 
     timestamp: str = datetime.datetime.now().strftime("%m%d%H%M%S")
     run_id: str = f"{timestamp}-{name}-{str(uuid.uuid4())[:4]}"
@@ -35,27 +37,26 @@ class TrainConfig(BaseModel):
     out_dir: Path = Path("outputs") / run_id
 
     seed = 42
-    # debug_mode: bool = args.debug_mode
 
     # Net
-    model_family: str = "gpt2_loop"
-    device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    family: str = "gpt2_loop"
 
-    n_dims = conf.n_dims
-    n_positions = conf.n_positions
-    n_embd = conf.n_embd
-    n_layer = conf.n_layer
-    n_head = conf.n_head
-    pred_type = conf.pred_type
-
-    loop_func = conf.loop_func
+    n_embd = 256
+    n_layer = 1
+    n_head = 8
+    n_positions = 101
+    n_dims = 20
+    
+    pred_type = ... # conf.pred_type
+    loop_func = ... # conf.loop_func
 
     # Training: optimizers and scalers
+    device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    learning_rate: float = args.training.learning_rate
-    weight_decay: float = args.training.weight_decay
+    learning_rate: float = 0.0001 # args.training.learning_rate
+    weight_decay: float = 0.0 # args.training.weight_decay
 
-    epochs = args.training.train_steps  # 500 000
+    epochs = 500000 # args.training.train_steps
 
 
 def setup_seed(seed=42):
@@ -68,9 +69,9 @@ def setup_seed(seed=42):
 
 
 def create_model(config: TrainConfig):
-    if config.model_family == "gpt2":
+    if config.family == "gpt2":
         model = TransformerModel(**dict(config))
-    elif config.model_family == "gpt2_loop":
+    elif config.family == "gpt2_loop":
         model = TransformerModelLooped(**dict(config))
     else:
         raise NotImplementedError
@@ -93,11 +94,11 @@ def train_batch(
 ):
     X, y = X.to(config.device), y.to(config.device)
 
-    if config.model_family == "gpt2":
+    if config.family == "gpt2":
         y_pred = model(X, y, add_inputs_embeds=args.training.add_inputs_embeds)  # [B, n]
         # list of [B, n], length K + 1, get rid of the 0-th one
         loss = (y - y_pred).square().mean()  # auto on both K and n (number of in context samples)
-    elif config.model_family == "gpt2_loop":
+    elif config.family == "gpt2_loop":
         n_loops = curriculum.n_loops  # K
 
         horizon_start = max(0, n_loops - args.training.n_loop_window)
@@ -169,12 +170,7 @@ def get_all_embeddings(dataset, model):
 
 def train(
     model: torch.nn.Module,
-    # loss_func: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
-    # scaler,
-    # train_loader: DataLoader,
-    # val_loader: DataLoader,
-    # accuracy_calculator,
     curriculum,
     config: TrainConfig,
 ):
