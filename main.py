@@ -10,7 +10,7 @@ import wandb
 from pydantic import BaseModel, ConfigDict
 from tqdm import trange
 
-from my_tasks import get_task_sampler
+from tasks import get_task_sampler
 from nano_gpt import GPT2Config, GPT2Model
 
 
