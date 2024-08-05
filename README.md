@@ -47,7 +47,7 @@ python3.10 -m venv .venv
 source .venv/bin/activate
 
 # Установить зависимости и запустить обучение
-pip install -r requrements.txt
+pip install -r requirements.txt
 python main.py
 ```
 
