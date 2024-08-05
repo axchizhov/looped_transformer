@@ -38,3 +38,16 @@ https://arxiv.org/abs/2311.12424
 - [x] Отрефакторить код из статьи 
 - [x] Найти идею для проверки 
 - [ ] Закодить правильный экспермент и посмотреть метрики
+
+## Как запустить обучение?
+
+```
+python -m venv .venv
+pip install -r requrements.txt
+python main.py
+```
+
+Простестировано:
+* Ubuntu 22.04.4 LTS
+* Python 3.10
+* Nvidia T4
