@@ -42,7 +42,11 @@ https://arxiv.org/abs/2311.12424
 ## Как запустить обучение?
 
 ```
-python -m venv .venv
+# Опционально
+python3.10 -m venv .venv
+source .venv/bin/activate
+
+# Поставить зависимости и запустить обучение
 pip install -r requrements.txt
 python main.py
 ```
