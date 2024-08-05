@@ -29,6 +29,7 @@ class CurriculumConfig(BaseModel):
     loops: CurriculumSchedule = CurriculumSchedule(start=15, end=30, inc=2, interval=500)
 
 
+# TODO: add trivial argparser
 class ExperimentConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -48,8 +49,7 @@ class ExperimentConfig(BaseModel):
     seed: int = 42
 
     # Net
-    family: str = "gpt2_loop"
-    # family: str = "gpt2"
+    family: str = "gpt2_loop"  # "gpt2"
 
     n_embd: int = 256
     n_layer: int = 1
@@ -282,8 +282,6 @@ def train(
     curriculum: Curriculum,
     config: ExperimentConfig,
 ):
-    # wandb.watch(model, loss_func, log="all", log_freq=100)
-
     for epoch in trange(config.epochs):
         model.train()
 
@@ -301,8 +299,6 @@ def train(
         xs, ys = real_task.xs.float(), real_task.ys.float()
 
         loss, output = train_batch(xs, ys, model, optimizer, curriculum, config)
-
-        # test(train_loader, val_loader, model, accuracy_calculator, epoch, config)
 
         if epoch % config.log_every_steps == 0:
             point_wise_loss = (output - ys).square().mean(dim=0)  # [n,]
@@ -351,15 +347,8 @@ if __name__ == "__main__":
 
     setup_seed(config.seed)
 
-    # torch.backends.cudnn.benchmark = True
-
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
-
     curriculum = Curriculum(config.curriculum)
 
     model, optimizer = create_model(config)
 
     train(model, optimizer, curriculum, config)
-
-    wandb.finish()
