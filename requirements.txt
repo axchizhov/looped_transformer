@@ -1,0 +1,9 @@
+torch
+protobuf
+jupyter
+matplotlib
+numpy<2.0
+pandas
+tqdm
+wandb
+pydantic
